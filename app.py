@@ -17,14 +17,23 @@ def redis_get(key):
 def redis_set(key, value):
     url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
     token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    body = json.dumps([["SET", key, value]]).encode()
+    body = json.dumps(["SET", key, value]).encode()
     req = urllib.request.Request(
-        f"{url}/pipeline",
+        url,
         data=body,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     )
     with urllib.request.urlopen(req) as resp:
         return json.loads(resp.read())
+
+@app.route("/redis-test")
+def redis_test():
+    try:
+        redis_set("test", "hello")
+        val = redis_get("test")
+        return jsonify({"ok": val == "hello", "got": val})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/debug")
 def debug():
