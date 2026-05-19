@@ -101,6 +101,12 @@
   .compose-field label{font-size:0.72rem;color:var(--text-dim);width:46px;}
   .compose-field select,.compose-field input{flex:1;background:none;border:none;color:var(--text);font-family:'Courier Prime',monospace;font-size:0.82rem;outline:none;}
   .compose-field select option,.compose-field select optgroup{background:var(--bg2);}
+  .compose-field.to-field{align-items:flex-start;padding-top:8px;}
+  .compose-field.to-field label{margin-top:3px;}
+  #composeTo[multiple]{height:72px;background:var(--bg2);border:1px solid var(--border);border-radius:2px;padding:2px;}
+  #composeTo[multiple] option{padding:2px 6px;border-radius:2px;}
+  #composeTo[multiple] option:checked{background:var(--gold);color:var(--bg);}
+  .to-hint{font-size:0.6rem;color:var(--amber-dim);padding:2px 12px 4px;}
   .compose-body{padding:9px 12px;min-height:90px;background:none;border:none;color:var(--text);font-family:'Courier Prime',monospace;font-size:0.82rem;outline:none;resize:none;line-height:1.6;}
   .compose-footer{padding:7px 12px;display:flex;align-items:center;gap:7px;border-top:1px solid var(--border);}
   .send-btn{padding:6px 16px;background:var(--gold);color:var(--bg);border:none;cursor:pointer;font-family:'VT323',monospace;font-size:0.95rem;border-radius:2px;}
@@ -216,9 +222,13 @@
     <label>From</label>
     <div id="fromDisplay" style="flex:1;font-family:'VT323',monospace;font-size:1rem;color:var(--gold)">—</div>
   </div>
-  <div class="compose-field">
+  <div class="compose-field to-field">
     <label>To</label>
-    <select id="composeTo"></select>
+    <select id="composeTo" multiple size="4"></select>
+  </div>
+  <div class="to-hint" style="display:flex;align-items:center;justify-content:space-between;padding-right:12px;">
+    <span>hold Ctrl / ⌘ to select multiple</span>
+    <button onclick="selectAllRecipients()" style="font-family:'VT323',monospace;font-size:0.8rem;background:none;border:1px solid var(--border);color:var(--amber-dim);padding:1px 7px;cursor:pointer;border-radius:2px;">📢 ALL</button>
   </div>
   <div class="compose-field">
     <label>Subject</label>
@@ -254,30 +264,30 @@ const SX = W/760, SY = H/490;
 const ALL_PEOPLE = [];
 
 const RAW_DESKS = [
-  {id:'Marina',  x:15,  y:20,  w:120,h:65, label:'DESK A'},
-  {id:'Aman',    x:165, y:20,  w:120,h:65, label:'DESK B'},
-  {id:'Lisa',    x:315, y:20,  w:120,h:65, label:'DESK 1'},
-  {id:'Dave',    x:465, y:20,  w:120,h:65, label:'DESK 2'},
-  {id:'Anthony', x:615, y:20,  w:125,h:65, label:'DESK 3'},
-  {id:'Matt',    x:15,  y:130, w:120,h:65, label:'DESK 4'},
-  {id:'Pedro',   x:165, y:130, w:120,h:65, label:'DESK 5'},
-  {id:'Sam',     x:315, y:130, w:120,h:65, label:'DESK 6'},
-  {id:'Bhupi',   x:465, y:130, w:120,h:65, label:'DESK 7'},
-  {id:'Renee',   x:615, y:130, w:125,h:65, label:'DESK 8'},
-  {id:'Alice',   x:15,  y:240, w:120,h:65, label:'DESK 9'},
-  {id:'Rob',     x:165, y:240, w:120,h:65, label:'DESK 10'},
-  {id:'Marc',    x:315, y:240, w:120,h:65, label:'DESK 11'},
-  {id:'Shathees',x:465, y:240, w:120,h:65, label:'DESK 12'},
-  {id:'Frank',   x:615, y:240, w:125,h:65, label:'DESK 13'},
-  {id:'Jo',      x:15,  y:320, w:120,h:65, label:'DESK 14'},
-  {id:'Alex',    x:165, y:320, w:120,h:65, label:'DESK 15'},
-  {id:'Riley',   x:315, y:320, w:120,h:65, label:'DESK 16'},
-  {id:'Casey',   x:465, y:320, w:120,h:65, label:'DESK 17'},
+  {id:'A',   x:15,  y:20,  w:120,h:65, label:'DESK A'},
+  {id:'B',   x:165, y:20,  w:120,h:65, label:'DESK B'},
+  {id:'1',   x:315, y:20,  w:120,h:65, label:'DESK 1'},
+  {id:'2',   x:465, y:20,  w:120,h:65, label:'DESK 2'},
+  {id:'3',   x:615, y:20,  w:125,h:65, label:'DESK 3'},
+  {id:'4',   x:15,  y:130, w:120,h:65, label:'DESK 4'},
+  {id:'5',   x:165, y:130, w:120,h:65, label:'DESK 5'},
+  {id:'6',   x:315, y:130, w:120,h:65, label:'DESK 6'},
+  {id:'7',   x:465, y:130, w:120,h:65, label:'DESK 7'},
+  {id:'8',   x:615, y:130, w:125,h:65, label:'DESK 8'},
+  {id:'9',   x:15,  y:240, w:120,h:65, label:'DESK 9'},
+  {id:'10',  x:165, y:240, w:120,h:65, label:'DESK 10'},
+  {id:'11',  x:315, y:240, w:120,h:65, label:'DESK 11'},
+  {id:'12',  x:465, y:240, w:120,h:65, label:'DESK 12'},
+  {id:'13',  x:615, y:240, w:125,h:65, label:'DESK 13'},
+  {id:'14',  x:15,  y:320, w:120,h:65, label:'DESK 14'},
+  {id:'15',  x:165, y:320, w:120,h:65, label:'DESK 15'},
+  {id:'16',  x:315, y:320, w:120,h:65, label:'DESK 16'},
+  {id:'17',  x:465, y:320, w:120,h:65, label:'DESK 17'},
   {id:'Break Room',x:90,  y:390, w:210,h:70, label:'☕ BREAK ROOM'},
   {id:'Meeting',   x:460, y:390, w:210,h:70, label:'🪑 MEETING RM'},
 ];
 
-const PICKABLE_DESK_IDS = ['Marina','Aman','Lisa','Dave','Anthony','Matt','Pedro','Sam','Bhupi','Renee','Alice','Rob','Marc','Shathees','Frank','Jo','Alex','Riley','Casey'];
+const PICKABLE_DESK_IDS = ['A','B','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'];
 
 const DESKS = RAW_DESKS.map(d=>({...d, x:d.x*SX, y:d.y*SY, w:d.w*SX, h:d.h*SY, color:'#5a3a08'}));
 
@@ -928,6 +938,11 @@ function openCompose(){
 }
 function closeCompose(){document.getElementById('composePanel').classList.remove('open');}
 
+function selectAllRecipients(){
+  const sel=document.getElementById('composeTo');
+  Array.from(sel.options).forEach(o=>{ o.selected=true; });
+}
+
 function updateRisk(){
   const body=document.getElementById('composeBody').value;
   const risk=0.15+Math.min(body.length/1000,0.25);
@@ -941,30 +956,37 @@ function updateRisk(){
 
 async function sendMessage(){
   if(!USERNAME){showToast('Join the office first!','squished');return;}
-  const to=document.getElementById('composeTo').value;
+  const toSel=document.getElementById('composeTo');
+  const recipients=Array.from(toSel.selectedOptions).map(o=>o.value).filter(v=>v&&v!==USERNAME);
   const subject=document.getElementById('composeSubject').value;
   const body=document.getElementById('composeBody').value;
+  if(!recipients.length){showToast('Pick at least one recipient!','squished');return;}
   if(!body.trim()) return;
-  if(USERNAME===to){showToast('Cannot message yourself!','squished');return;}
 
   const btn=document.getElementById('sendBtn');
   btn.disabled=true; btn.textContent='🐜 Sending...';
   closeCompose();
 
-  spawnMyAnt(myDeskId||USERNAME, to, myColor, async(canvasOutcome)=>{
-    const r=await fetch('/api/send',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({from:USERNAME,to,subject,body,forced_outcome:canvasOutcome})
+  let completed=0;
+  recipients.forEach(to=>{
+    spawnMyAnt(myDeskId||USERNAME, to, myColor, async(canvasOutcome)=>{
+      const r=await fetch('/api/send',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({from:USERNAME,to,subject,body,forced_outcome:canvasOutcome})
+      });
+      const data=await r.json();
+      if(data.status==='delivered') showToast(`✅ Delivered to ${to}!`,'delivered');
+      else if(data.status==='squished') showToast(`☠️ Ant to ${to} squished!`,'squished');
+      else showToast(`⚠️ Message to ${to} garbled!`,'garbled');
+      completed++;
+      if(completed===recipients.length){
+        btn.disabled=false; btn.textContent='🐜 SEND ANT';
+        document.getElementById('composeSubject').value='';
+        document.getElementById('composeBody').value='';
+        updateRisk();
+      }
+      loadMessages();
     });
-    const data=await r.json();
-    btn.disabled=false; btn.textContent='🐜 SEND ANT';
-    if(data.status==='delivered') showToast('✅ Delivered safely!','delivered');
-    else if(data.status==='squished') showToast('☠️ '+(data.squish_msg||'Ant squished!'),'squished');
-    else showToast('⚠️ '+(data.squish_msg||'Message garbled!'),'garbled');
-    document.getElementById('composeSubject').value='';
-    document.getElementById('composeBody').value='';
-    updateRisk();
-    loadMessages();
   });
 }
 
@@ -992,6 +1014,11 @@ spawnFooterAnt(); spawnFooterAnt();
 (async function(){
   const saved=JSON.parse(localStorage.getItem('anternet_v2_session')||'null');
   if(!saved||!saved.name||!saved.desk) return;
+  // Reject old name-based desk IDs from before the rename
+  if(!PICKABLE_DESK_IDS.includes(saved.desk)){
+    document.getElementById('usernameInput').value=saved.name;
+    return;
+  }
   try {
     const r=await fetch('/api/state?me=');
     const data=await r.json();
