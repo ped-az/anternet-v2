@@ -232,6 +232,12 @@
   </div>
 </div>
 
+<div id="deskPickBanner" style="display:none;position:fixed;top:0;left:0;right:0;background:var(--panel);border-bottom:2px solid var(--gold);padding:10px 16px;z-index:600;align-items:center;gap:12px;">
+  <span style="font-family:'VT323',monospace;font-size:1.2rem;color:var(--gold);">📍 CLICK YOUR DESK ON THE MAP</span>
+  <span id="deskPickLabel" style="font-size:0.8rem;color:var(--text-dim);">— no desk selected —</span>
+  <button id="confirmDeskBtn2" onclick="startSession()" disabled style="font-family:'VT323',monospace;font-size:1rem;background:var(--gold);color:var(--bg);border:none;padding:5px 16px;cursor:pointer;border-radius:2px;margin-left:auto;opacity:0.5">[ TAKE SEAT ]</button>
+  <button onclick="backToName()" style="font-family:'VT323',monospace;font-size:0.9rem;background:none;border:1px solid var(--border);color:var(--text-dim);padding:5px 10px;cursor:pointer;border-radius:2px;">← BACK</button>
+</div>
 <div class="toast" id="toast"></div>
 <div class="ant-trail" id="antTrail"></div>
 
@@ -276,6 +282,8 @@ const DESKS = RAW_DESKS.map(d=>({...d, x:d.x*SX, y:d.y*SY, w:d.w*SX, h:d.h*SY, c
 
 let myDeskId = null;
 let playerDeskMap = {}; // deskId -> {name, color}
+let inDeskPickMode = false;
+let loginTakenDesks = [];
 
 function updatePlayerDesks(players) {
   playerDeskMap = {};
@@ -396,6 +404,21 @@ function drawDesks(){
     const isMyDesk = myDeskId && d.id===myDeskId;
     const other = !isMyDesk && playerDeskMap[d.id];
     const isPickable = PICKABLE_DESK_IDS.includes(d.id);
+
+    if(inDeskPickMode && isPickable) {
+      const isTaken = loginTakenDesks.includes(d.id);
+      const isSelected = d.id === selectedDeskId;
+      ctx.fillStyle = isSelected ? '#5a4000' : isTaken ? '#2a0808' : '#0a2a0a';
+      ctx.fillRect(d.x,d.y,d.w,d.h);
+      ctx.strokeStyle = isSelected ? '#d4a017' : isTaken ? '#662222' : '#22aa22';
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      ctx.strokeRect(d.x,d.y,d.w,d.h);
+      ctx.font=`bold ${Math.round(12*SX)}px Courier Prime,monospace`;
+      ctx.textAlign='center';
+      ctx.fillStyle = isSelected ? '#ffe0a0' : isTaken ? '#664444' : '#44aa44';
+      ctx.fillText(isTaken ? '🔒 TAKEN' : (isSelected ? '✓ '+d.label : d.label), d.x+d.w/2, d.y+d.h/2+5);
+      return;
+    }
 
     // Background fill
     if(isMyDesk) ctx.fillStyle='#8a6010';
@@ -727,38 +750,53 @@ let selectedDeskId = null;
 function showDeskPicker(){
   const name=document.getElementById('usernameInput').value.trim();
   if(!name) return;
-  document.getElementById('modalStep1').style.display='none';
-  document.getElementById('modalStep2').style.display='block';
-  buildDeskGrid([]);
+  document.getElementById('loginModal').style.display='none';
+  const banner=document.getElementById('deskPickBanner');
+  banner.style.display='flex';
+  inDeskPickMode=true;
+  loginTakenDesks=[];
   fetch('/api/state?me=').then(r=>r.json()).then(data=>{
-    const taken=data.players.map(p=>p.desk).filter(Boolean);
-    buildDeskGrid(taken);
-  }).catch(()=>buildDeskGrid([]));
+    loginTakenDesks=data.players.map(p=>p.desk).filter(Boolean);
+  }).catch(()=>{});
 }
 
-function buildDeskGrid(takenDesks){
-  const grid=document.getElementById('deskPickerGrid');
-  grid.innerHTML=PICKABLE_DESK_IDS.map((id,i)=>{
-    const taken=takenDesks.includes(id);
-    return `<button class="desk-pick-btn${taken?' taken':''}" onclick="selectDesk('${id}')" id="dpick-${id}" ${taken?'disabled':''}>${i+1}</button>`;
-  }).join('');
+function backToName(){
+  inDeskPickMode=false;
+  selectedDeskId=null;
+  document.getElementById('deskPickBanner').style.display='none';
+  document.getElementById('loginModal').style.display='flex';
 }
 
 function selectDesk(id){
   selectedDeskId=id;
-  document.querySelectorAll('.desk-pick-btn').forEach(b=>b.classList.remove('selected'));
-  const btn=document.getElementById('dpick-'+id);
-  if(btn) btn.classList.add('selected');
-  document.getElementById('confirmDeskBtn').disabled=false;
+  const deskInfo=RAW_DESKS.find(d=>d.id===id);
+  document.getElementById('deskPickLabel').textContent='Selected: '+(deskInfo?deskInfo.label:id);
+  const btn=document.getElementById('confirmDeskBtn2');
+  btn.disabled=false; btn.style.opacity='1';
 }
 
+canvas.addEventListener('click', function(e){
+  if(!inDeskPickMode) return;
+  const rect=canvas.getBoundingClientRect();
+  const cx=(e.clientX-rect.left)*(W/rect.width);
+  const cy=(e.clientY-rect.top)*(H/rect.height);
+  const desk=DESKS.find(d=>
+    PICKABLE_DESK_IDS.includes(d.id) &&
+    !loginTakenDesks.includes(d.id) &&
+    cx>=d.x && cx<=d.x+d.w && cy>=d.y && cy<=d.y+d.h
+  );
+  if(desk) selectDesk(desk.id);
+});
+
 async function startSession(){
-  const name=document.getElementById('usernameInput').value.trim();
+  const name=document.getElementById('usernameInput').value.trim()||USERNAME;
   if(!name||!selectedDeskId) return;
   USERNAME=name.charAt(0).toUpperCase()+name.slice(1);
   myDeskId=selectedDeskId;
+  inDeskPickMode=false;
 
   document.getElementById('loginModal').style.display='none';
+  document.getElementById('deskPickBanner').style.display='none';
 
   const tag=document.getElementById('playerTag');
   tag.innerHTML=`<span class="online-dot" style="background:${myColor}"></span>💻 ${USERNAME}`;
@@ -771,6 +809,7 @@ async function startSession(){
     myColor=data.color;
     tag.innerHTML=`<span class="online-dot" style="background:${myColor}"></span>💻 ${USERNAME}`;
     updateOnlineList(data.players);
+    localStorage.setItem('anternet_v2_session', JSON.stringify({name:USERNAME, desk:myDeskId}));
   } catch(e){ console.warn('join failed, continuing offline', e); }
 
   buildToDropdown();
@@ -911,6 +950,25 @@ function spawnFooterAnt(){
 setInterval(spawnFooterAnt,2500);
 spawnFooterAnt(); spawnFooterAnt();
 
+// ─── AUTO LOGIN FROM LOCALSTORAGE ────────────────────
+(async function(){
+  const saved=JSON.parse(localStorage.getItem('anternet_v2_session')||'null');
+  if(!saved||!saved.name||!saved.desk) return;
+  try {
+    const r=await fetch('/api/state?me=');
+    const data=await r.json();
+    const taken=data.players.map(p=>p.desk).filter(Boolean);
+    if(!taken.includes(saved.desk)){
+      document.getElementById('usernameInput').value=saved.name;
+      USERNAME=saved.name.charAt(0).toUpperCase()+saved.name.slice(1);
+      selectedDeskId=saved.desk;
+      await startSession();
+      return;
+    }
+  } catch(e){}
+  // Desk taken or error — pre-fill name, let them pick a new desk
+  document.getElementById('usernameInput').value=saved.name;
+})();
 // poll handles message refresh
 </script>
 </body>
