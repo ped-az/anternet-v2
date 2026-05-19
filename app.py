@@ -1,4 +1,4 @@
-import os, json, random, time, urllib.request
+import os, json, random, time, urllib.request, secrets
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 
@@ -74,17 +74,24 @@ def cleanup_sessions(sessions):
 def get_color(name):
     return COLORS[abs(hash(name)) % len(COLORS)]
 
-def upsert_session(sessions, name, desk=None):
-    """Add or refresh a player session, always returns updated sessions"""
+def upsert_session(sessions, name, desk=None, token=None):
+    """Add or refresh a player session. If token matches existing session, restore it;
+    otherwise generate a new token (invalidates any prior session with this name)."""
     existing = sessions.get(name, {})
+    existing_token = existing.get("token", "")
+    if token and token == existing_token:
+        session_token = existing_token
+    else:
+        session_token = secrets.token_hex(16)
     sessions[name] = {
         "name": name,
         "color": get_color(name),
         "last_seen": time.time(),
         "ants": existing.get("ants", {}),
         "desk": desk or existing.get("desk", ""),
+        "token": session_token,
     }
-    return sessions
+    return sessions, session_token
 
 @app.route("/")
 def index():
@@ -95,31 +102,36 @@ def join():
     data = request.json
     name = data.get("name", "Unknown").strip()
     desk = data.get("desk", "").strip()
+    token = data.get("token", "").strip()
     if not name:
         return jsonify({"error": "no name"}), 400
     sessions = load_sessions()
     sessions = cleanup_sessions(sessions)
-    sessions = upsert_session(sessions, name, desk)
+    sessions, session_token = upsert_session(sessions, name, desk, token)
     save_sessions(sessions)
     print(f"[JOIN] {name} desk={desk} — sessions now: {list(sessions.keys())}")
-    return jsonify({"color": get_color(name), "players": list(sessions.values())})
+    # Strip token from players list before sending to clients
+    players = [{k: v for k, v in p.items() if k != "token"} for p in sessions.values()]
+    return jsonify({"color": get_color(name), "players": players, "token": session_token})
+
+def strip_token(session):
+    return {k: v for k, v in session.items() if k != "token"}
 
 @app.route("/api/state")
 def get_state():
     me = request.args.get("me", "")
     sessions = load_sessions()
     sessions = cleanup_sessions(sessions)
-    # Refresh our own last_seen if we're in state
     if me and me in sessions:
         sessions[me]["last_seen"] = time.time()
         save_sessions(sessions)
-    others = [v for k, v in sessions.items() if k != me]
+    others = [strip_token(v) for k, v in sessions.items() if k != me]
     messages = load_messages()
     recent = [m for m in messages if m["to"] == me and m["status"] == "delivered"]
     recent.sort(key=lambda x: x["timestamp"], reverse=True)
     print(f"[STATE] requested by '{me}' — all players: {list(sessions.keys())}")
     return jsonify({
-        "players": list(sessions.values()),
+        "players": [strip_token(v) for v in sessions.values()],
         "others": others,
         "recent_for_me": recent[:5],
     })
@@ -132,8 +144,7 @@ def ant_update():
         return jsonify({"ok": False})
     sessions = load_sessions()
     sessions = cleanup_sessions(sessions)
-    # Always upsert — never silently drop
-    sessions = upsert_session(sessions, name)
+    sessions, _ = upsert_session(sessions, name, token=sessions.get(name, {}).get("token"))
     sessions[name]["ants"] = data.get("ants", {})
     save_sessions(sessions)
     return jsonify({"ok": True})
@@ -151,14 +162,16 @@ def leave():
 @app.route("/api/messages")
 def get_messages():
     name = request.args.get("name", "")
+    token = request.args.get("token", "")
+    if not name or not token:
+        return jsonify({"error": "unauthorized"}), 401
+    sessions = load_sessions()
+    if sessions.get(name, {}).get("token") != token:
+        return jsonify({"error": "unauthorized"}), 401
     messages = load_messages()
-    inbox = [m for m in messages if m["to"] == name and m["status"] == "delivered"]
+    inbox = [m for m in messages if m["to"] == name]
     sent  = [m for m in messages if m["from"] == name]
     return jsonify({"inbox": inbox, "sent": sent})
-
-@app.route("/api/all")
-def get_all():
-    return jsonify(load_messages())
 
 @app.route("/api/send", methods=["POST"])
 def send_message():

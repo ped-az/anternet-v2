@@ -646,7 +646,7 @@ spawnDistraction();
 // ═══════════════════════════════════════════════════════
 // MULTIPLAYER — simple HTTP polling, no websockets needed
 // ═══════════════════════════════════════════════════════
-let USERNAME='', myColor='#cc1100';
+let USERNAME='', myColor='#cc1100', myToken='';
 let myLiveAnts={}; // antId -> {x,y,tx,ty,name,color,alive}
 let lastMessageCount=0;
 
@@ -655,7 +655,7 @@ async function pollServer(){
   if(!USERNAME) return;
   try {
     // Re-register every poll — keeps session alive
-    fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId})});
+    fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId,token:myToken})});
     // Send our ant positions
     fetch('/api/ant_update',{
       method:'POST',
@@ -808,8 +808,10 @@ async function confirmDeskChange(){
   document.getElementById('confirmDeskBtn2').onclick=startSession;
   document.getElementById('fromDisplay').textContent='💻 '+USERNAME+' ('+myDeskId+')';
   try {
-    await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId})});
-    localStorage.setItem('anternet_v2_session',JSON.stringify({name:USERNAME,desk:myDeskId}));
+    const r=await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId,token:myToken})});
+    const data=await r.json();
+    myToken=data.token;
+    localStorage.setItem('anternet_v2_session',JSON.stringify({name:USERNAME,desk:myDeskId,token:myToken}));
     showToast('📍 Moved to '+myDeskId,'');
   } catch(e){ console.warn('desk change failed',e); }
 }
@@ -852,12 +854,13 @@ async function startSession(){
   document.getElementById('fromDisplay').textContent='💻 '+USERNAME+' ('+myDeskId+')';
 
   try {
-    const r=await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId})});
+    const r=await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId,token:myToken})});
     const data=await r.json();
     myColor=data.color;
+    myToken=data.token;
     tag.innerHTML=`<span class="online-dot" style="background:${myColor}"></span>💻 ${USERNAME}`;
     updateOnlineList(data.players);
-    localStorage.setItem('anternet_v2_session', JSON.stringify({name:USERNAME, desk:myDeskId}));
+    localStorage.setItem('anternet_v2_session', JSON.stringify({name:USERNAME, desk:myDeskId, token:myToken}));
   } catch(e){ console.warn('join failed, continuing offline', e); }
 
   buildToDropdown();
@@ -882,11 +885,13 @@ function showView(view){
 }
 
 async function loadMessages(){
-  if(!USERNAME) return;
+  if(!USERNAME||!myToken) return;
   try {
-    const r=await fetch('/api/all');
-    allMessages=await r.json();
-    console.log('messages loaded:', allMessages.length, 'USERNAME:', USERNAME);
+    const r=await fetch(`/api/messages?name=${encodeURIComponent(USERNAME)}&token=${encodeURIComponent(myToken)}`);
+    if(!r.ok) return;
+    const data=await r.json();
+    const seen=new Set();
+    allMessages=[...data.inbox,...data.sent].filter(m=>{if(seen.has(m.id))return false;seen.add(m.id);return true;});
     renderList();
   } catch(e){ console.error('loadMessages error', e); }
 }
@@ -1027,6 +1032,7 @@ spawnFooterAnt(); spawnFooterAnt();
       document.getElementById('usernameInput').value=saved.name;
       USERNAME=saved.name.charAt(0).toUpperCase()+saved.name.slice(1);
       selectedDeskId=saved.desk;
+      myToken=saved.token||'';
       await startSession();
       return;
     }
