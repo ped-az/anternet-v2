@@ -1,26 +1,35 @@
-import os, json, random, time
+import os, json, random, time, urllib.request
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
-from upstash_redis import Redis
 
 app = Flask(__name__)
 
-_redis = None
+def redis_get(key):
+    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
+    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+    req = urllib.request.Request(
+        f"{url}/get/{key}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read()).get("result")
 
-def get_redis():
-    global _redis
-    if _redis is None:
-        _redis = Redis(
-            url=os.environ["UPSTASH_REDIS_REST_URL"],
-            token=os.environ["UPSTASH_REDIS_REST_TOKEN"],
-        )
-    return _redis
+def redis_set(key, value):
+    url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
+    token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+    body = json.dumps(["SET", key, value]).encode()
+    req = urllib.request.Request(
+        f"{url}/pipeline",
+        data=body,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read())
 
 @app.route("/debug")
 def debug():
-    keys = list(os.environ.keys())
-    has_url = "UPSTASH_REDIS_REST_URL" in os.environ
-    has_token = "UPSTASH_REDIS_REST_TOKEN" in os.environ
+    has_url = bool(os.environ.get("UPSTASH_REDIS_REST_URL"))
+    has_token = bool(os.environ.get("UPSTASH_REDIS_REST_TOKEN"))
     return jsonify({"has_url": has_url, "has_token": has_token})
 
 COLORS = ['#cc1100','#1177cc','#11aa44','#cc7700','#9911cc',
@@ -28,25 +37,25 @@ COLORS = ['#cc1100','#1177cc','#11aa44','#cc7700','#9911cc',
 
 def load_sessions():
     try:
-        data = get_redis().get("sessions")
+        data = redis_get("sessions")
         result = json.loads(data) if data else {}
         return result if isinstance(result, dict) else {}
     except:
         return {}
 
 def save_sessions(sessions):
-    get_redis().set("sessions", json.dumps(sessions))
+    redis_set("sessions", json.dumps(sessions))
 
 def load_messages():
     try:
-        data = get_redis().get("messages")
+        data = redis_get("messages")
         result = json.loads(data) if data else []
         return result if isinstance(result, list) else []
     except:
         return []
 
 def save_messages(msgs):
-    get_redis().set("messages", json.dumps(msgs))
+    redis_set("messages", json.dumps(msgs))
 
 def cleanup_sessions(sessions):
     # Give 10 seconds before expiring
