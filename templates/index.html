@@ -249,6 +249,15 @@
   <button id="confirmDeskBtn2" onclick="startSession()" disabled style="font-family:'VT323',monospace;font-size:1rem;background:var(--gold);color:var(--bg);border:none;padding:5px 16px;cursor:pointer;border-radius:2px;margin-left:auto;opacity:0.5">[ TAKE SEAT ]</button>
   <button onclick="backToName()" style="font-family:'VT323',monospace;font-size:0.9rem;background:none;border:1px solid var(--border);color:var(--text-dim);padding:5px 10px;cursor:pointer;border-radius:2px;">← BACK</button>
 </div>
+
+<div class="modal-overlay" id="deskConfirmModal" style="display:none;z-index:700;">
+  <div class="modal-box" style="min-width:320px;">
+    <h2 id="deskConfirmTitle">📍 DESK A</h2>
+    <p id="deskConfirmSub" style="margin-bottom:24px;">claim this desk?</p>
+    <button class="modal-btn" id="deskConfirmTakeBtn" onclick="confirmDeskSelection()" style="margin-bottom:10px;">[ TAKE SEAT ]</button>
+    <button onclick="closeDeskConfirm()" style="font-family:'VT323',monospace;font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);padding:6px 24px;cursor:pointer;width:100%;letter-spacing:2px;">[ PICK DIFFERENT ]</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <div class="ant-trail" id="antTrail"></div>
 
@@ -819,9 +828,28 @@ async function confirmDeskChange(){
 function selectDesk(id){
   selectedDeskId=id;
   const deskInfo=RAW_DESKS.find(d=>d.id===id);
-  document.getElementById('deskPickLabel').textContent='Selected: '+(deskInfo?deskInfo.label:id);
+  const label=deskInfo?deskInfo.label:id;
+  document.getElementById('deskPickLabel').textContent='Selected: '+label;
   const btn=document.getElementById('confirmDeskBtn2');
   btn.disabled=false; btn.style.opacity='1';
+  // Show confirmation popup
+  document.getElementById('deskConfirmTitle').textContent='📍 '+label;
+  document.getElementById('deskConfirmSub').textContent='claim this desk, '+USERNAME+'?';
+  document.getElementById('deskConfirmModal').style.display='flex';
+}
+
+function closeDeskConfirm(){
+  document.getElementById('deskConfirmModal').style.display='none';
+  selectedDeskId=null;
+  const btn=document.getElementById('confirmDeskBtn2');
+  btn.disabled=true; btn.style.opacity='0.5';
+  document.getElementById('deskPickLabel').textContent='— no desk selected —';
+}
+
+function confirmDeskSelection(){
+  document.getElementById('deskConfirmModal').style.display='none';
+  // Trigger whichever action is wired to confirmDeskBtn2
+  document.getElementById('confirmDeskBtn2').onclick();
 }
 
 canvas.addEventListener('click', function(e){
