@@ -155,6 +155,7 @@
 <header>
   <div class="logo"><span class="logo-ant">🐜</span> ANTERNET <span style="font-size:0.55rem;letter-spacing:4px;color:var(--text-dim);margin-left:4px">v2.0</span></div>
   <div class="player-tag" id="playerTag"></div>
+  <button id="changeDeskBtn" onclick="changeDesk()" style="display:none;font-family:'VT323',monospace;font-size:0.75rem;background:none;border:1px solid var(--border);color:var(--text-dim);padding:2px 8px;cursor:pointer;border-radius:2px;">📍 DESK</button>
   <div style="margin-left:auto;font-size:0.68rem;color:var(--text-dim);padding:2px 8px;border:1px solid var(--border);border-radius:2px" id="squishMeter">☠️ risk: —</div>
 </header>
 
@@ -284,6 +285,7 @@ let myDeskId = null;
 let playerDeskMap = {}; // deskId -> {name, color}
 let inDeskPickMode = false;
 let loginTakenDesks = [];
+let changingDesk = false;
 
 function updatePlayerDesks(players) {
   playerDeskMap = {};
@@ -764,7 +766,42 @@ function backToName(){
   inDeskPickMode=false;
   selectedDeskId=null;
   document.getElementById('deskPickBanner').style.display='none';
+  document.getElementById('confirmDeskBtn2').onclick=startSession;
+  if(changingDesk){ changingDesk=false; return; }
   document.getElementById('loginModal').style.display='flex';
+}
+
+function changeDesk(){
+  if(!USERNAME) return;
+  changingDesk=true;
+  selectedDeskId=null;
+  inDeskPickMode=true;
+  loginTakenDesks=[];
+  const banner=document.getElementById('deskPickBanner');
+  banner.querySelector('span').textContent='📍 CLICK YOUR NEW DESK ON THE MAP';
+  document.getElementById('deskPickLabel').textContent='— no desk selected —';
+  const btn=document.getElementById('confirmDeskBtn2');
+  btn.disabled=true; btn.style.opacity='0.5';
+  btn.onclick=confirmDeskChange;
+  banner.style.display='flex';
+  fetch('/api/state?me='+encodeURIComponent(USERNAME)).then(r=>r.json()).then(data=>{
+    loginTakenDesks=data.players.filter(p=>p.name!==USERNAME).map(p=>p.desk).filter(Boolean);
+  }).catch(()=>{});
+}
+
+async function confirmDeskChange(){
+  if(!selectedDeskId||!USERNAME) return;
+  myDeskId=selectedDeskId;
+  inDeskPickMode=false;
+  changingDesk=false;
+  document.getElementById('deskPickBanner').style.display='none';
+  document.getElementById('confirmDeskBtn2').onclick=startSession;
+  document.getElementById('fromDisplay').textContent='💻 '+USERNAME+' ('+myDeskId+')';
+  try {
+    await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId})});
+    localStorage.setItem('anternet_v2_session',JSON.stringify({name:USERNAME,desk:myDeskId}));
+    showToast('📍 Moved to '+myDeskId,'');
+  } catch(e){ console.warn('desk change failed',e); }
 }
 
 function selectDesk(id){
@@ -801,6 +838,7 @@ async function startSession(){
   const tag=document.getElementById('playerTag');
   tag.innerHTML=`<span class="online-dot" style="background:${myColor}"></span>💻 ${USERNAME}`;
   tag.style.display='inline-flex';
+  document.getElementById('changeDeskBtn').style.display='inline-block';
   document.getElementById('fromDisplay').textContent='💻 '+USERNAME+' ('+myDeskId+')';
 
   try {
