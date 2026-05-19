@@ -1,0 +1,11 @@
+# Local data files (replaced by Upstash Redis in production)
+messages.json
+sessions.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/

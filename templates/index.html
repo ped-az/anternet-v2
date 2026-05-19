@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐜 Anternet v2</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#1a1208; --bg2:#221a0a; --bg3:#2e2210; --panel:#271e0d;
+    --border:#4a3a18; --gold:#d4a017; --gold2:#f0c040;
+    --green:#39ff14; --red:#ff3333; --orange:#e07030;
+    --text:#e8d8a0; --text-dim:#9a8660;
+    --amber:#ffb000; --amber-dim:#7a5500; --amber-glow:#ff8c00;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Courier Prime',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:500;}
+  .modal-box{background:var(--panel);border:2px solid var(--gold);padding:32px 36px;text-align:center;min-width:300px;}
+  .modal-box h2{font-family:'VT323',monospace;font-size:2.2rem;letter-spacing:3px;margin-bottom:6px;text-shadow:0 0 14px var(--amber-glow);}
+  .modal-box p{font-size:0.85rem;color:var(--text-dim);margin-bottom:18px;letter-spacing:1px;}
+  .modal-box input{background:#0f0f07;color:var(--gold);border:1px solid var(--gold);font-family:'VT323',monospace;font-size:1.8rem;padding:6px 12px;width:100%;text-align:center;outline:none;letter-spacing:2px;margin-bottom:14px;}
+  .modal-box input::placeholder{color:var(--amber-dim);}
+  .modal-btn{font-family:'VT323',monospace;font-size:1.4rem;background:var(--gold);color:var(--bg);border:none;padding:6px 24px;cursor:pointer;width:100%;letter-spacing:2px;}
+  .modal-btn:hover{background:var(--gold2);}
+
+  header{background:var(--bg2);border-bottom:2px solid var(--gold);padding:7px 14px;display:flex;align-items:center;gap:10px;z-index:10;flex-shrink:0;}
+  .logo{font-family:'VT323',monospace;font-size:1.5rem;color:var(--gold2);letter-spacing:3px;}
+  .logo-ant{animation:march 1s steps(1) infinite;display:inline-block;}
+  @keyframes march{0%,100%{transform:translateX(0)}50%{transform:translateX(2px)}}
+  .player-tag{font-family:'VT323',monospace;font-size:1rem;padding:3px 10px;border:1px solid var(--border);border-radius:2px;display:none;align-items:center;gap:5px;}
+  .online-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+  .app{display:flex;flex:1;overflow:hidden;}
+
+  aside{width:155px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);padding:10px 0;display:flex;flex-direction:column;gap:2px;}
+  .compose-btn{margin:6px 10px 14px;padding:8px;background:var(--gold);color:var(--bg);border:none;cursor:pointer;font-family:'VT323',monospace;font-size:1.05rem;border-radius:2px;}
+  .compose-btn:hover{background:var(--gold2);}
+  .nav-btn{padding:7px 14px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:'Courier Prime',monospace;font-size:0.82rem;text-align:left;transition:all 0.15s;border-left:3px solid transparent;}
+  .nav-btn:hover{color:var(--text);background:var(--bg3);}
+  .nav-btn.active{color:var(--gold);border-left-color:var(--gold);background:var(--bg3);}
+  .aside-section{padding:8px 10px 4px;font-size:0.65rem;color:var(--amber-dim);letter-spacing:1px;font-family:'VT323',monospace;}
+  .online-list{padding:0 10px;display:flex;flex-direction:column;gap:3px;max-height:130px;overflow-y:auto;}
+  .online-item{font-size:0.7rem;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .center-col{display:flex;flex-direction:column;flex:1;overflow:hidden;min-width:0;}
+  .canvas-wrap{flex-shrink:0;background:var(--bg2);border-bottom:2px solid var(--border);display:flex;justify-content:center;align-items:center;padding:3px;}
+  #gameCanvas{display:block;border:1px solid var(--border);}
+  .hud-bar{display:flex;gap:10px;padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--border);font-family:'VT323',monospace;font-size:0.95rem;color:var(--text-dim);flex-shrink:0;}
+  .hud-bar span{color:var(--gold);}
+  .hazard-bar{display:flex;align-items:center;gap:8px;padding:3px 10px;background:var(--bg2);border-bottom:2px solid var(--border);font-family:'VT323',monospace;flex-shrink:0;min-height:24px;}
+  .hazard-chip{display:inline-flex;align-items:center;gap:2px;background:#1a1a06;border:1px solid var(--border);padding:1px 6px;border-radius:2px;font-size:0.75rem;}
+  .hazard-chip.danger{border-color:#662222;color:var(--red);}
+  .hazard-chip.food{border-color:#226622;color:#6db33f;}
+  .message-list{height:140px;overflow-y:auto;flex-shrink:0;}
+  .list-header{padding:5px 10px;border-bottom:1px solid var(--border);font-family:'VT323',monospace;font-size:0.9rem;color:var(--text-dim);background:var(--bg2);}
+  .msg-item{padding:6px 10px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;}
+  .msg-item:hover{background:var(--bg3);}
+  .msg-item.active{background:var(--bg3);border-left:3px solid var(--gold);}
+  .msg-from{font-size:0.72rem;color:var(--text-dim);margin-bottom:2px;display:flex;justify-content:space-between;}
+  .msg-subject{font-size:0.82rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .msg-preview{font-size:0.68rem;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .status-badge{font-size:0.58rem;padding:1px 4px;border-radius:2px;font-weight:700;letter-spacing:1px;}
+  .status-delivered{background:var(--green);color:#000;}
+  .status-squished{background:var(--red);color:#fff;}
+  .status-garbled{background:var(--orange);color:#fff;}
+  .status-transit{background:var(--amber);color:#000;}
+
+  .right-col{width:260px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid var(--border);}
+  .message-view{flex:1;overflow-y:auto;padding:14px;background:var(--bg);}
+  .msg-full-subject{font-family:'VT323',monospace;font-size:1.2rem;color:var(--gold2);margin-bottom:7px;}
+  .msg-full-header{border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:12px;}
+  .msg-meta{font-size:0.72rem;color:var(--text-dim);line-height:1.8;}
+  .msg-meta strong{color:var(--text);}
+  .msg-body{line-height:1.8;white-space:pre-wrap;font-size:0.88rem;}
+  .squish-alert{background:var(--red);color:#fff;padding:8px 10px;border-radius:2px;margin-bottom:10px;font-size:0.82rem;animation:shake 0.4s ease;}
+  .garble-alert{background:var(--orange);color:#fff;padding:8px 10px;border-radius:2px;margin-bottom:10px;font-size:0.82rem;}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--text-dim);gap:8px;font-size:0.82rem;}
+  .big-ant{font-size:2rem;opacity:0.3;}
+
+  .chat-panel{border-top:1px solid var(--border);background:var(--bg2);padding:8px 10px;flex-shrink:0;}
+  .chat-panel h4{font-family:'VT323',monospace;font-size:0.95rem;color:var(--amber-dim);letter-spacing:1px;margin-bottom:5px;}
+  .chat-feed{max-height:110px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+  .chat-entry{background:#1a1a06;border:1px solid var(--amber-dim);padding:4px 7px;border-radius:2px;font-size:0.68rem;}
+  .chat-entry.delivered{border-color:var(--green);}
+  .chat-entry.lost{border-color:var(--red);opacity:0.6;}
+  .chat-entry.transit{border-color:var(--amber);}
+  .chat-who{font-weight:700;font-size:0.68rem;}
+  .chat-msg{color:#bbb;font-style:italic;margin:1px 0;}
+  .chat-status{font-size:0.62rem;}
+
+  .compose-panel{position:fixed;bottom:14px;right:14px;width:400px;background:var(--panel);border:1px solid var(--gold);border-radius:3px;box-shadow:0 8px 40px rgba(0,0,0,0.8);z-index:200;display:none;flex-direction:column;animation:slideUp 0.2s ease;}
+  .compose-panel.open{display:flex;}
+  @keyframes slideUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .compose-header{padding:9px 12px;background:var(--gold);color:var(--bg);font-family:'VT323',monospace;font-size:1rem;display:flex;justify-content:space-between;align-items:center;}
+  .compose-close{background:none;border:none;cursor:pointer;font-size:1rem;color:var(--bg);}
+  .compose-field{display:flex;align-items:center;border-bottom:1px solid var(--border);padding:6px 12px;gap:7px;}
+  .compose-field label{font-size:0.72rem;color:var(--text-dim);width:46px;}
+  .compose-field select,.compose-field input{flex:1;background:none;border:none;color:var(--text);font-family:'Courier Prime',monospace;font-size:0.82rem;outline:none;}
+  .compose-field select option,.compose-field select optgroup{background:var(--bg2);}
+  .compose-body{padding:9px 12px;min-height:90px;background:none;border:none;color:var(--text);font-family:'Courier Prime',monospace;font-size:0.82rem;outline:none;resize:none;line-height:1.6;}
+  .compose-footer{padding:7px 12px;display:flex;align-items:center;gap:7px;border-top:1px solid var(--border);}
+  .send-btn{padding:6px 16px;background:var(--gold);color:var(--bg);border:none;cursor:pointer;font-family:'VT323',monospace;font-size:0.95rem;border-radius:2px;}
+  .send-btn:hover{background:var(--gold2);}
+  .send-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .risk-label{font-size:0.68rem;color:var(--text-dim);}
+  .risk-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+  .risk-fill{height:100%;background:var(--green);transition:width 0.3s,background 0.3s;}
+
+  .toast{position:fixed;top:56px;left:50%;transform:translateX(-50%) translateY(-14px);padding:8px 18px;border-radius:3px;font-size:0.82rem;opacity:0;transition:all 0.3s;z-index:400;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.delivered{background:var(--green);color:#000;}
+  .toast.squished{background:var(--red);color:#fff;}
+  .toast.garbled{background:var(--orange);color:#fff;}
+  .toast.info{background:var(--amber);color:#000;}
+
+  .ant-trail{position:fixed;bottom:0;left:0;width:100%;height:18px;pointer-events:none;overflow:hidden;z-index:50;}
+  .ant-walker{position:absolute;bottom:2px;font-size:11px;animation:walkAnt linear infinite;}
+  @keyframes walkAnt{from{left:-20px}to{left:110%}}
+
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+  .desk-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;max-height:200px;overflow-y:auto;}
+  .desk-pick-btn{font-family:'VT323',monospace;font-size:1rem;background:#1a1200;color:var(--text);border:1px solid var(--border);padding:6px 4px;cursor:pointer;text-align:center;transition:all 0.15s;border-radius:2px;}
+  .desk-pick-btn:hover:not(:disabled){background:var(--bg3);border-color:var(--gold);}
+  .desk-pick-btn.selected{background:var(--gold);color:var(--bg);border-color:var(--gold2);}
+  .desk-pick-btn.taken{opacity:0.3;cursor:not-allowed;}
+  .modal-step{transition:opacity 0.2s;}
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-box">
+    <div id="modalStep1" class="modal-step">
+      <h2>🐜 THE ANTERNET</h2>
+      <p>enter your name to join the office</p>
+      <input type="text" id="usernameInput" placeholder="YOUR NAME" maxlength="20" />
+      <button class="modal-btn" onclick="showDeskPicker()">[ NEXT ]</button>
+    </div>
+    <div id="modalStep2" class="modal-step" style="display:none">
+      <h2>📍 PICK A DESK</h2>
+      <p>choose your seat in the office</p>
+      <div class="desk-pick-grid" id="deskPickerGrid"></div>
+      <button class="modal-btn" id="confirmDeskBtn" onclick="startSession()" disabled>[ TAKE SEAT ]</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo"><span class="logo-ant">🐜</span> ANTERNET <span style="font-size:0.55rem;letter-spacing:4px;color:var(--text-dim);margin-left:4px">v2.0</span></div>
+  <div class="player-tag" id="playerTag"></div>
+  <div style="margin-left:auto;font-size:0.68rem;color:var(--text-dim);padding:2px 8px;border:1px solid var(--border);border-radius:2px" id="squishMeter">☠️ risk: —</div>
+</header>
+
+<div class="app">
+  <aside>
+    <button class="compose-btn" onclick="openCompose()">✍️ COMPOSE</button>
+    <button class="nav-btn active" onclick="showView('inbox')"  id="nav-inbox">📥 Inbox</button>
+    <button class="nav-btn"        onclick="showView('sent')"   id="nav-sent">📤 Sent</button>
+    <div class="aside-section">🐜 ONLINE</div>
+    <div class="online-list" id="onlineList">
+      <div style="font-size:0.68rem;color:var(--text-dim)">join to see players</div>
+    </div>
+    <div style="margin-top:auto;padding:10px;font-size:0.62rem;color:var(--text-dim);line-height:1.7">
+      Pheromone-based<br>messaging system<br>est. colony year 3
+    </div>
+  </aside>
+
+  <div class="center-col">
+    <div class="canvas-wrap">
+      <canvas id="gameCanvas" width="640" height="420"></canvas>
+    </div>
+    <div class="hud-bar">
+      🐜 <span id="hTransit">0</span> ants in transit
+    </div>
+    <div class="hazard-bar" id="hazardBar">
+      <span style="color:var(--amber-dim);font-size:0.65rem;letter-spacing:1px">ACTIVE:</span>
+      <span id="hazardIcons" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></span>
+    </div>
+    <div class="message-list">
+      <div class="list-header" id="listHeader">INBOX</div>
+      <div id="msgItems"></div>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div class="message-view" id="messageView">
+      <div class="empty-state">
+        <div class="big-ant">🐜</div>
+        <div>Select a message</div>
+        <div style="font-size:0.68rem">or compose a new one</div>
+      </div>
+    </div>
+    <div class="chat-panel">
+      <h4>💬 ALL MESSAGES</h4>
+      <div class="chat-feed" id="chatFeed">
+        <div style="color:var(--text-dim);font-size:0.68rem">Waiting for messages...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="compose-panel" id="composePanel">
+  <div class="compose-header">
+    <span>📝 New Pheromone-gram</span>
+    <button class="compose-close" onclick="closeCompose()">✕</button>
+  </div>
+  <div class="compose-field">
+    <label>From</label>
+    <div id="fromDisplay" style="flex:1;font-family:'VT323',monospace;font-size:1rem;color:var(--gold)">—</div>
+  </div>
+  <div class="compose-field">
+    <label>To</label>
+    <select id="composeTo"></select>
+  </div>
+  <div class="compose-field">
+    <label>Subject</label>
+    <input type="text" id="composeSubject" placeholder="Subject..." />
+  </div>
+  <textarea class="compose-body" id="composeBody" placeholder="Write your message... (longer = higher squish risk 🥾)" oninput="updateRisk()"></textarea>
+  <div class="compose-footer">
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">🐜 SEND ANT</button>
+    <div class="risk-label">Risk:</div>
+    <div class="risk-bar"><div class="risk-fill" id="riskFill" style="width:15%"></div></div>
+    <span id="riskPct" style="font-size:0.68rem;color:var(--text-dim);min-width:26px">15%</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="ant-trail" id="antTrail"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 640, H = 420;
+const SX = W/760, SY = H/490;
+
+const ALL_PEOPLE = ['Marina','Aman'];
+
+const RAW_DESKS = [
+  {id:'Marina',  x:15,  y:20,  w:120,h:65, label:'💻 MARINA', npc:true},
+  {id:'Aman',    x:165, y:20,  w:120,h:65, label:'💻 AMAN',   npc:true},
+  {id:'Lisa',    x:315, y:20,  w:120,h:65, label:'DESK 1'},
+  {id:'Dave',    x:465, y:20,  w:120,h:65, label:'DESK 2'},
+  {id:'Anthony', x:615, y:20,  w:125,h:65, label:'DESK 3'},
+  {id:'Matt',    x:15,  y:130, w:120,h:65, label:'DESK 4'},
+  {id:'Pedro',   x:165, y:130, w:120,h:65, label:'DESK 5'},
+  {id:'Sam',     x:315, y:130, w:120,h:65, label:'DESK 6'},
+  {id:'Bhupi',   x:465, y:130, w:120,h:65, label:'DESK 7'},
+  {id:'Renee',   x:615, y:130, w:125,h:65, label:'DESK 8'},
+  {id:'Alice',   x:15,  y:240, w:120,h:65, label:'DESK 9'},
+  {id:'Rob',     x:165, y:240, w:120,h:65, label:'DESK 10'},
+  {id:'Marc',    x:315, y:240, w:120,h:65, label:'DESK 11'},
+  {id:'Shathees',x:465, y:240, w:120,h:65, label:'DESK 12'},
+  {id:'Frank',   x:615, y:240, w:125,h:65, label:'DESK 13'},
+  {id:'Jo',      x:15,  y:320, w:120,h:65, label:'DESK 14'},
+  {id:'Alex',    x:165, y:320, w:120,h:65, label:'DESK 15'},
+  {id:'Riley',   x:315, y:320, w:120,h:65, label:'DESK 16'},
+  {id:'Casey',   x:465, y:320, w:120,h:65, label:'DESK 17'},
+  {id:'Break Room',x:90,  y:390, w:210,h:70, label:'☕ BREAK ROOM'},
+  {id:'Meeting',   x:460, y:390, w:210,h:70, label:'🪑 MEETING RM'},
+];
+
+const PICKABLE_DESK_IDS = ['Lisa','Dave','Anthony','Matt','Pedro','Sam','Bhupi','Renee','Alice','Rob','Marc','Shathees','Frank','Jo','Alex','Riley','Casey'];
+
+const DESKS = RAW_DESKS.map(d=>({...d, x:d.x*SX, y:d.y*SY, w:d.w*SX, h:d.h*SY, color:'#5a3a08'}));
+
+let myDeskId = null;
+let playerDeskMap = {}; // deskId -> {name, color}
+
+function updatePlayerDesks(players) {
+  playerDeskMap = {};
+  players.forEach(p => {
+    if (p.desk && p.name !== USERNAME) {
+      playerDeskMap[p.desk] = {name: p.name, color: p.color};
+    }
+  });
+}
+
+function getDeskCenter(id) {
+  // Direct desk ID match
+  let d = DESKS.find(d=>d.id===id);
+  if(d) return {x:d.x+d.w/2, y:d.y+d.h/2};
+  // Check if id is a player name sitting at a pickable desk
+  const entry = Object.entries(playerDeskMap).find(([,p])=>p.name===id);
+  if(entry){ d=DESKS.find(d=>d.id===entry[0]); if(d) return {x:d.x+d.w/2, y:d.y+d.h/2}; }
+  // Player's own desk
+  if(id===USERNAME && myDeskId){ d=DESKS.find(d=>d.id===myDeskId); if(d) return {x:d.x+d.w/2, y:d.y+d.h/2}; }
+  return {x:W/2, y:H/2};
+}
+
+// ═══════════════════════════════════════════════════════
+// HAZARDS & DISTRACTIONS
+// ═══════════════════════════════════════════════════════
+const HAZARD_TYPES = [
+  {emoji:'👟',label:'Shoe',         radius:15,speed:0.5,effect:'squish'},
+  {emoji:'🪑',label:'Rolling chair',radius:13,speed:0.35,effect:'squish'},
+  {emoji:'📦',label:'Falling box',  radius:12,speed:0.4,effect:'squish'},
+  {emoji:'🧹',label:'Broom',        radius:15,speed:0.65,effect:'squish'},
+  {emoji:'👞',label:'Running shoe', radius:11,speed:0.9,effect:'squish'},
+  {emoji:'🖱️',label:'Mouse cord',  radius:11,speed:0.55,effect:'squish'},
+];
+const DISTRACTION_TYPES = [
+  {emoji:'🍕',radius:18,pull:0.6},{emoji:'🍩',radius:16,pull:0.5},
+  {emoji:'🍪',radius:14,pull:0.45},{emoji:'🧁',radius:17,pull:0.55},
+  {emoji:'🍫',radius:13,pull:0.4},{emoji:'🍬',radius:12,pull:0.35},
+];
+const AISLE_ROUTES = [
+  [{x:0,y:112},{x:760,y:112},{x:760,y:222},{x:0,y:222}],
+  [{x:0,y:222},{x:760,y:222},{x:760,y:332},{x:0,y:332}],
+  [{x:148,y:0},{x:148,y:490},{x:148,y:0}],
+  [{x:298,y:0},{x:298,y:490},{x:298,y:0}],
+  [{x:448,y:0},{x:448,y:490},{x:448,y:0}],
+  [{x:608,y:0},{x:608,y:490},{x:608,y:0}],
+  [{x:0,y:0},{x:760,y:0},{x:760,y:490},{x:0,y:490}],
+].map(r=>r.map(p=>({x:p.x*SX,y:p.y*SY})));
+
+const ANT_NAMES = ['Sir Crumbs','Antoinette','Mandible Mike','Queen Bitey','Thorax Ted',
+  'Pebble Pete','Aunt Anty','Scuttles','Ferdinand','Lord Nibbles',
+  'Crinkle','Wobbles McGee','Tiny Tim','Baron Von Dig','Chompy','Reginald'];
+const NPC_PEOPLE = ['Marina','Aman'];
+const NPC_CHATTER = ['seen my stapler?','free cake!','anyone on zoom?','printer jammed',
+  'meeting moved','where is the report?','lunch order?','wifi is down','thx!',
+  'call me asap','out of coffee','who took my chair','quick question...','happy friday!'];
+
+let liveAnts=[], hazards=[], distractions=[], particles=[];
+let frameCount=0, npcIdCounter=9000;
+
+// ── Remote players: name -> { color, ants: {id -> {x,y,tx,ty,name,color}} }
+let remotePlayers = {};
+
+function getAntName(){ return ANT_NAMES[Math.floor(Math.random()*ANT_NAMES.length)]; }
+
+function spawnMyAnt(fromId, toId, color, onResult) {
+  const from=getDeskCenter(fromId), to=getDeskCenter(toId);
+  const ant={
+    x:from.x, y:from.y, tx:to.x, ty:to.y,
+    fromId, toId, speed:0.9, wobble:Math.random()*Math.PI*2,
+    name:getAntName(), alive:true, onResult, hitCount:0,
+    isMe:true, color:color||'#cc1100', _id:Date.now()
+  };
+  liveAnts.push(ant);
+  return ant;
+}
+
+function spawnNPCAnt() {
+  const from=NPC_PEOPLE[Math.floor(Math.random()*NPC_PEOPLE.length)];
+  const toOpts=NPC_PEOPLE.filter(p=>p!==from);
+  const to=toOpts[Math.floor(Math.random()*toOpts.length)];
+  const fp=getDeskCenter(from), tp=getDeskCenter(to);
+  liveAnts.push({
+    x:fp.x, y:fp.y, tx:tp.x, ty:tp.y,
+    fromId:from, toId:to, speed:0.5+Math.random()*0.3,
+    wobble:Math.random()*Math.PI*2,
+    name:getAntName(), alive:true, hitCount:0,
+    isMe:false, color:'#2a1400', onResult:()=>{},
+    _id:npcIdCounter++
+  });
+}
+
+function spawnHazard() {
+  const t={...HAZARD_TYPES[Math.floor(Math.random()*HAZARD_TYPES.length)]};
+  const route=AISLE_ROUTES[Math.floor(Math.random()*AISLE_ROUTES.length)];
+  const si=Math.floor(Math.random()*route.length);
+  hazards.push({...t, x:route[si].x, y:route[si].y, route, routeIdx:(si+1)%route.length});
+  if(hazards.length>4) hazards.shift();
+}
+function spawnDistraction() {
+  const t=DISTRACTION_TYPES[Math.floor(Math.random()*DISTRACTION_TYPES.length)];
+  const xs=[148,298,448,608].map(x=>x*SX), ys=[112,222,332].map(y=>y*SY);
+  distractions.push({...t, x:xs[Math.floor(Math.random()*xs.length)], y:ys[Math.floor(Math.random()*ys.length)], life:500+Math.floor(Math.random()*400)});
+  if(distractions.length>2) distractions.shift();
+}
+function spawnParticles(x,y,color,count){
+  for(let i=0;i<count;i++) particles.push({x,y,dx:(Math.random()-0.5)*3,dy:(Math.random()-0.5)*3,life:1,color,size:2+Math.random()*2});
+}
+
+// ── DRAW ──────────────────────────────────────────────
+function drawFloor(){
+  ctx.fillStyle='#c8b896'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#bfaf88';
+  for(let x=0;x<W;x+=40*SX) for(let y=0;y<H;y+=40*SY)
+    if((Math.floor(x/(40*SX))+Math.floor(y/(40*SY)))%2===0) ctx.fillRect(x,y,40*SX,40*SY);
+}
+function drawDesks(){
+  DESKS.forEach(d=>{
+    const isMyDesk = myDeskId && d.id===myDeskId;
+    const other = !isMyDesk && playerDeskMap[d.id];
+    const isPickable = PICKABLE_DESK_IDS.includes(d.id);
+
+    // Background fill
+    if(isMyDesk) ctx.fillStyle='#8a6010';
+    else if(other) ctx.fillStyle='#1a3a1a';
+    else if(isPickable) ctx.fillStyle='#1a1a0a';
+    else ctx.fillStyle=d.color||'#5a3a08';
+    ctx.fillRect(d.x,d.y,d.w,d.h);
+
+    // Top stripe
+    if(isMyDesk) ctx.fillStyle='#d4a017';
+    else if(other) ctx.fillStyle=other.color;
+    else if(isPickable) ctx.fillStyle='#2a2a10';
+    else ctx.fillStyle='#d4a017';
+    ctx.fillRect(d.x+2,d.y+2,d.w-4,6*SY);
+
+    // Border
+    if(other){ ctx.strokeStyle=other.color; ctx.lineWidth=2; }
+    else if(isPickable && !isMyDesk){ ctx.strokeStyle='#3a3a18'; ctx.lineWidth=1; }
+    else{ ctx.strokeStyle='#5a3a00'; ctx.lineWidth=1.5; }
+    ctx.strokeRect(d.x,d.y,d.w,d.h);
+
+    // Label
+    ctx.font=`bold ${Math.round(13*SX)}px Courier Prime,monospace`;
+    ctx.textAlign='center';
+    if(isMyDesk){
+      ctx.fillStyle='#ffe0a0';
+      ctx.fillText('💻 '+USERNAME.toUpperCase(), d.x+d.w/2, d.y+d.h/2+5);
+    } else if(other){
+      ctx.fillStyle=other.color;
+      ctx.fillText('💻 '+other.name.toUpperCase(), d.x+d.w/2, d.y+d.h/2+5);
+      const pulse = 0.6+0.4*Math.sin(frameCount*0.08);
+      ctx.fillStyle=`rgba(57,255,20,${pulse})`;
+      ctx.beginPath(); ctx.arc(d.x+d.w-10*SX, d.y+10*SY, 4*SX, 0, Math.PI*2); ctx.fill();
+    } else if(isPickable){
+      ctx.fillStyle='#3a3a20';
+      ctx.fillText(d.label.toUpperCase(), d.x+d.w/2, d.y+d.h/2+5);
+    } else {
+      ctx.fillStyle='#ffe0a0';
+      ctx.fillText(d.label, d.x+d.w/2, d.y+d.h/2+5);
+    }
+  });
+}
+function drawAisles(){
+  ctx.strokeStyle='rgba(160,140,100,0.3)'; ctx.lineWidth=0.7; ctx.setLineDash([5,4]);
+  [112,222,332].map(y=>y*SY).forEach(y=>{ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();});
+  [148,298,448,608].map(x=>x*SX).forEach(x=>{ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,320*SY);ctx.stroke();});
+  ctx.setLineDash([]);
+}
+function drawHazards(){
+  hazards.forEach(h=>{
+    ctx.fillStyle='rgba(255,50,50,0.14)'; ctx.beginPath(); ctx.arc(h.x,h.y,h.radius*SX,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,50,50,0.35)'; ctx.lineWidth=0.7; ctx.beginPath(); ctx.arc(h.x,h.y,h.radius*SX,0,Math.PI*2); ctx.stroke();
+    ctx.font=`${Math.round(15*SX)}px serif`; ctx.textAlign='center'; ctx.fillText(h.emoji,h.x,h.y+5*SY);
+  });
+}
+function drawDistractions(){
+  distractions.forEach(d=>{
+    const p=0.25+0.15*Math.sin(frameCount*0.08);
+    ctx.fillStyle=`rgba(60,160,40,${p})`; ctx.beginPath(); ctx.arc(d.x,d.y,d.radius*SX*1.6,0,Math.PI*2); ctx.fill();
+    ctx.font=`${Math.round(15*SX)}px serif`; ctx.textAlign='center'; ctx.fillText(d.emoji,d.x,d.y+5*SY);
+  });
+}
+function drawAntShape(x,y,angle,color,wobble,sc,isMe){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(angle);
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.ellipse(0,0,4*sc,2.5*sc,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-5*sc,0,3*sc,2*sc,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5*sc,0,2.5*sc,1.8*sc,0,0,Math.PI*2); ctx.fill();
+  if(isMe){ctx.fillStyle='rgba(255,255,180,0.5)';ctx.beginPath();ctx.arc(0,0,1.2*sc,0,Math.PI*2);ctx.fill();}
+  ctx.strokeStyle=color+'99'; ctx.lineWidth=0.9*sc;
+  const lw=Math.sin(frameCount*0.15+wobble);
+  for(let i=-1;i<=1;i++){
+    ctx.beginPath();ctx.moveTo(i*2.5*sc,-2*sc);ctx.lineTo(i*2.5*sc-3*sc,-5*sc+lw*2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(i*2.5*sc,2*sc);ctx.lineTo(i*2.5*sc-3*sc,5*sc-lw*2);ctx.stroke();
+  }
+  ctx.rotate(-angle);
+  ctx.font=`${Math.round(10*SX)}px serif`; ctx.textAlign='center';
+  ctx.fillText(isMe?'📨':'✉️',0,-8*sc);
+  ctx.restore();
+}
+function drawAnt(ant){
+  if(!ant.alive) return;
+  const angle=Math.atan2(ant.ty-ant.y,ant.tx-ant.x);
+  const sc=ant.isMe?SX*1.3:SX*0.95;
+  drawAntShape(ant.x,ant.y,angle,ant.color,ant.wobble,sc,ant.isMe);
+  ctx.fillStyle=ant.isMe?'rgba(255,176,0,0.95)':'rgba(160,120,60,0.5)';
+  ctx.font=`${Math.round((ant.isMe?7:6)*SX)}px Courier Prime,monospace`; ctx.textAlign='center';
+  ctx.fillText(ant.name,ant.x,ant.y-(ant.isMe?14:11)*sc);
+}
+function drawRemotePlayers(){
+  Object.values(remotePlayers).forEach(p=>{
+    if(!p.ants) return;
+    Object.values(p.ants).forEach(ant=>{
+      if(!ant.alive) return;
+      const angle=Math.atan2((ant.ty||ant.y)-ant.y,(ant.tx||ant.x)-ant.x);
+      drawAntShape(ant.x,ant.y,angle,p.color||'#1177cc',ant.wobble||0,SX*1.2,true);
+      ctx.fillStyle=p.color||'#1177cc';
+      ctx.font=`${Math.round(7*SX)}px Courier Prime,monospace`; ctx.textAlign='center';
+      ctx.fillText(ant.name,ant.x,ant.y-14*SX*1.2);
+    });
+  });
+}
+function drawParticles(){
+  particles.forEach(p=>{ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();});
+  ctx.globalAlpha=1;
+}
+
+// ── UPDATE ────────────────────────────────────────────
+function updateGame(){
+  frameCount++;
+  if(frameCount%60===0) updateHazardBar();
+  if(frameCount%400===0) spawnHazard();
+  if(frameCount%300===0) spawnDistraction();
+  if(frameCount%280===0 && liveAnts.filter(a=>!a.isMe).length<3) spawnNPCAnt();
+
+  hazards.forEach(h=>{
+    const t=h.route[h.routeIdx];
+    const dx=t.x-h.x,dy=t.y-h.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<h.speed+1){h.x=t.x;h.y=t.y;h.routeIdx=(h.routeIdx+1)%h.route.length;}
+    else{h.x+=(dx/dist)*h.speed;h.y+=(dy/dist)*h.speed;}
+  });
+  distractions.forEach(d=>d.life--);
+  distractions=distractions.filter(d=>d.life>0);
+
+  // Smoothly move remote ants toward their last known position
+  Object.values(remotePlayers).forEach(p=>{
+    if(!p.ants) return;
+    Object.values(p.ants).forEach(ant=>{
+      if(!ant.alive||!ant.tx) return;
+      const dx=ant.tx-ant.x,dy=ant.ty-ant.y,dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist>2){ant.x+=(dx/dist)*1.2;ant.y+=(dy/dist)*1.2;}
+    });
+  });
+
+  liveAnts.forEach(ant=>{
+    if(!ant.alive) return;
+    const dx=ant.tx-ant.x,dy=ant.ty-ant.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>3){
+      ant.x+=(dx/dist)*ant.speed+Math.sin(frameCount*0.05+ant.wobble)*0.4;
+      ant.y+=(dy/dist)*ant.speed+Math.cos(frameCount*0.07+ant.wobble)*0.4;
+      distractions.forEach(fd=>{
+        const fdx=ant.x-fd.x,fdy=ant.y-fd.y,fdist=Math.sqrt(fdx*fdx+fdy*fdy);
+        if(fdist<fd.radius*SX*2.5&&fdist>1){ant.x+=(-fdx/fdist)*fd.pull*0.3;ant.y+=(-fdy/fdist)*fd.pull*0.3;}
+      });
+      for(const h of hazards){
+        const hx=ant.x-h.x,hy=ant.y-h.y;
+        if(Math.sqrt(hx*hx+hy*hy)<h.radius*SX){
+          ant.hitCount++;
+          if(ant.hitCount===1){ant.x+=(Math.random()-0.5)*20;ant.y+=(Math.random()-0.5)*20;}
+          else{
+            ant.alive=false;
+            spawnParticles(ant.x,ant.y,'#ff3333',12);
+            if(ant.isMe){updateHUD();ant.onResult('squished');}
+            return;
+          }
+          break;
+        }
+      }
+    } else {
+      ant.alive=false;
+      const outcome=ant.hitCount>=1?'garbled':'delivered';
+      spawnParticles(ant.x,ant.y,outcome==='delivered'?'#39ff14':'#e07030',10);
+      if(ant.isMe){
+        updateHUD();
+        ant.onResult(outcome);
+      }
+    }
+  });
+
+  liveAnts=liveAnts.filter(a=>a.alive);
+  particles.forEach(p=>{p.x+=p.dx;p.y+=p.dy;p.life-=0.035;p.dy+=0.04;});
+  particles=particles.filter(p=>p.life>0);
+}
+
+function drawGame(){
+  ctx.clearRect(0,0,W,H);
+  drawFloor(); drawAisles(); drawDesks();
+  drawHazards(); drawDistractions();
+  liveAnts.forEach(drawAnt);
+  drawRemotePlayers();
+  drawParticles();
+}
+function updateHUD(){
+  document.getElementById('hTransit').textContent=liveAnts.filter(a=>a.isMe).length;
+  updateHazardBar();
+}
+
+function updateHazardBar(){
+  // Count hazards by emoji
+  const hGroups={}, dGroups={};
+  hazards.forEach(h=>{
+    if(!hGroups[h.emoji]) hGroups[h.emoji]={emoji:h.emoji,label:h.label,count:0};
+    hGroups[h.emoji].count++;
+  });
+  distractions.forEach(d=>{
+    if(!dGroups[d.emoji]) dGroups[d.emoji]={emoji:d.emoji,label:d.label,count:0};
+    dGroups[d.emoji].count++;
+  });
+  const el=document.getElementById('hazardIcons');
+  if(!el) return;
+  const hChips=Object.values(hGroups).map(g=>
+    `<span class="hazard-chip danger" title="${g.label}">${g.emoji} <span style="font-family:'Courier Prime',monospace;font-size:0.65rem">x${g.count}</span></span>`
+  ).join('');
+  const dChips=Object.values(dGroups).map(g=>
+    `<span class="hazard-chip food" title="${g.label}">${g.emoji} <span style="font-family:'Courier Prime',monospace;font-size:0.65rem">x${g.count}</span></span>`
+  ).join('');
+  el.innerHTML = hChips+dChips || '<span style="font-size:0.65rem;color:var(--text-dim)">none</span>';
+}
+setInterval(()=>{updateGame();drawGame();},1000/60);
+spawnHazard();
+spawnDistraction();
+
+// ═══════════════════════════════════════════════════════
+// MULTIPLAYER — simple HTTP polling, no websockets needed
+// ═══════════════════════════════════════════════════════
+let USERNAME='', myColor='#cc1100';
+let myLiveAnts={}; // antId -> {x,y,tx,ty,name,color,alive}
+let lastMessageCount=0;
+
+// Poll server every 2s for other players and their ant positions
+async function pollServer(){
+  if(!USERNAME) return;
+  try {
+    // Re-register every poll — keeps session alive
+    fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId})});
+    // Send our ant positions
+    fetch('/api/ant_update',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({player:USERNAME, ants:myLiveAnts})
+    });
+    // Get state of all other players (passing me= also refreshes last_seen)
+    const r=await fetch('/api/state?me='+encodeURIComponent(USERNAME));
+    const data=await r.json();
+
+    // Merge players — never flash-remove, only add/update
+    const freshNames = data.players.map(p=>p.name);
+
+    // Add or update players we know about
+    data.others.forEach(p=>{
+      if(!remotePlayers[p.name]) remotePlayers[p.name]={color:p.color,ants:{},desk:p.desk};
+      remotePlayers[p.name].color=p.color;
+      remotePlayers[p.name].desk=p.desk;
+      remotePlayers[p.name].lastSeen=Date.now();
+      const serverAnts=p.ants||{};
+      Object.keys(remotePlayers[p.name].ants).forEach(id=>{
+        if(!serverAnts[id]) remotePlayers[p.name].ants[id].alive=false;
+      });
+      Object.entries(serverAnts).forEach(([id,ant])=>{
+        if(!remotePlayers[p.name].ants[id]){
+          remotePlayers[p.name].ants[id]={...ant, wobble:Math.random()*Math.PI*2};
+        } else {
+          remotePlayers[p.name].ants[id].tx=ant.x;
+          remotePlayers[p.name].ants[id].ty=ant.y;
+          remotePlayers[p.name].ants[id].alive=ant.alive;
+        }
+      });
+    });
+
+    // Only remove players gone for more than 8 seconds (not just one missed poll)
+    const now=Date.now();
+    Object.keys(remotePlayers).forEach(name=>{
+      const lastSeen=remotePlayers[name].lastSeen||0;
+      if(now-lastSeen > 8000) delete remotePlayers[name];
+    });
+
+    // Update online list with stable merged set
+    const allOnline=[{name:USERNAME,color:myColor,desk:myDeskId},...Object.entries(remotePlayers).map(([n,p])=>({name:n,color:p.color,desk:p.desk}))];
+    updateOnlineList(allOnline);
+
+    // Check for new messages to me
+    if(data.recent_for_me.length>lastMessageCount && lastMessageCount>0){
+      const newest=data.recent_for_me[0];
+      showToast(`📬 New message from ${newest.from}!`,'info');
+      loadMessages();
+    }
+    lastMessageCount=data.recent_for_me.length;
+
+    // Refresh inbox on every poll
+    loadMessages();
+
+  } catch(e){ console.log('poll error',e); }
+}
+
+// Update our own ant positions so other players can see them
+function syncMyAnts(){
+  myLiveAnts={};
+  liveAnts.filter(a=>a.isMe&&a.alive).forEach(a=>{
+    myLiveAnts[a._id]={x:Math.round(a.x),y:Math.round(a.y),tx:Math.round(a.tx),ty:Math.round(a.ty),name:a.name,color:myColor,alive:true};
+  });
+}
+setInterval(syncMyAnts,100);
+setInterval(pollServer,1500);
+
+// ─── ONLINE LIST & DROPDOWN ──────────────────────────
+let onlinePlayers=[];
+function updateOnlineList(players){
+  onlinePlayers=players||[];
+  updatePlayerDesks(onlinePlayers);
+  const el=document.getElementById('onlineList');
+  if(!onlinePlayers.length){el.innerHTML='<div style="font-size:0.68rem;color:var(--text-dim)">just you</div>';return;}
+  el.innerHTML=onlinePlayers.map(p=>
+    `<div class="online-item"><span class="online-dot" style="background:${p.color};margin-right:4px"></span><span style="color:${p.color};font-size:0.72rem">${p.name}</span></div>`
+  ).join('');
+  buildToDropdown();
+}
+
+function buildToDropdown(){
+  const sel=document.getElementById('composeTo');
+  const current=sel.value;
+  const onlineNames=onlinePlayers.map(p=>p.name).filter(n=>n!==USERNAME);
+  const officeNames=ALL_PEOPLE.filter(p=>p!==USERNAME&&!onlineNames.includes(p));
+  let html='';
+  if(onlineNames.length){
+    html+=`<optgroup label="── Online ──">`;
+    html+=onlineNames.map(n=>`<option value="${n}">🟢 ${n}</option>`).join('');
+    html+=`</optgroup>`;
+  }
+  html+=`<optgroup label="── Office ──">`;
+  html+=officeNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+  html+=`</optgroup>`;
+  sel.innerHTML=html;
+  if(current) sel.value=current;
+}
+
+// ─── LOGIN ───────────────────────────────────────────
+let selectedDeskId = null;
+
+function showDeskPicker(){
+  const name=document.getElementById('usernameInput').value.trim();
+  if(!name) return;
+  document.getElementById('modalStep1').style.display='none';
+  document.getElementById('modalStep2').style.display='block';
+  buildDeskGrid([]);
+  fetch('/api/state?me=').then(r=>r.json()).then(data=>{
+    const taken=data.players.map(p=>p.desk).filter(Boolean);
+    buildDeskGrid(taken);
+  }).catch(()=>buildDeskGrid([]));
+}
+
+function buildDeskGrid(takenDesks){
+  const grid=document.getElementById('deskPickerGrid');
+  grid.innerHTML=PICKABLE_DESK_IDS.map((id,i)=>{
+    const taken=takenDesks.includes(id);
+    return `<button class="desk-pick-btn${taken?' taken':''}" onclick="selectDesk('${id}')" id="dpick-${id}" ${taken?'disabled':''}>${i+1}</button>`;
+  }).join('');
+}
+
+function selectDesk(id){
+  selectedDeskId=id;
+  document.querySelectorAll('.desk-pick-btn').forEach(b=>b.classList.remove('selected'));
+  const btn=document.getElementById('dpick-'+id);
+  if(btn) btn.classList.add('selected');
+  document.getElementById('confirmDeskBtn').disabled=false;
+}
+
+async function startSession(){
+  const name=document.getElementById('usernameInput').value.trim();
+  if(!name||!selectedDeskId) return;
+  USERNAME=name.charAt(0).toUpperCase()+name.slice(1);
+  myDeskId=selectedDeskId;
+
+  document.getElementById('loginModal').style.display='none';
+
+  const tag=document.getElementById('playerTag');
+  tag.innerHTML=`<span class="online-dot" style="background:${myColor}"></span>💻 ${USERNAME}`;
+  tag.style.display='inline-flex';
+  document.getElementById('fromDisplay').textContent='💻 '+USERNAME+' ('+myDeskId+')';
+
+  try {
+    const r=await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:USERNAME,desk:myDeskId})});
+    const data=await r.json();
+    myColor=data.color;
+    tag.innerHTML=`<span class="online-dot" style="background:${myColor}"></span>💻 ${USERNAME}`;
+    updateOnlineList(data.players);
+  } catch(e){ console.warn('join failed, continuing offline', e); }
+
+  buildToDropdown();
+  loadMessages();
+  pollServer();
+
+  window.addEventListener('beforeunload',()=>{
+    const blob=new Blob([JSON.stringify({name:USERNAME})],{type:'application/json'});
+    navigator.sendBeacon('/api/leave',blob);
+  });
+}
+document.getElementById('usernameInput').addEventListener('keydown',e=>{if(e.key==='Enter')showDeskPicker();});
+
+// ─── MESSAGING UI ────────────────────────────────────
+let currentView='inbox', allMessages=[];
+
+function showView(view){
+  currentView=view;
+  ['inbox','sent'].forEach(v=>document.getElementById('nav-'+v).classList.toggle('active',v===view));
+  document.getElementById('listHeader').textContent={inbox:'INBOX',sent:'SENT'}[view];
+  loadMessages();
+}
+
+async function loadMessages(){
+  if(!USERNAME) return;
+  try {
+    const r=await fetch('/api/all');
+    allMessages=await r.json();
+    console.log('messages loaded:', allMessages.length, 'USERNAME:', USERNAME);
+    renderList();
+  } catch(e){ console.error('loadMessages error', e); }
+}
+
+function renderList(){
+  if(!Array.isArray(allMessages)){renderList_retry();return;}
+  let msgs=[...allMessages];
+  if(currentView==='inbox') msgs=allMessages.filter(m=>m.to.toLowerCase()===USERNAME.toLowerCase());
+  else if(currentView==='sent') msgs=allMessages.filter(m=>m.from.toLowerCase()===USERNAME.toLowerCase());
+  msgs.sort((a,b)=>b.timestamp.localeCompare(a.timestamp));
+  const container=document.getElementById('msgItems');
+  if(!msgs.length){
+    container.innerHTML='<div style="padding:16px;text-align:center;color:var(--text-dim);font-size:0.78rem">No messages 🐜</div>';
+    return;
+  }
+  container.innerHTML=msgs.map(m=>{
+    const date=new Date(m.timestamp).toLocaleDateString('en-AU',{day:'2-digit',month:'short'});
+    return `<div class="msg-item" onclick="viewMessage('${m.id}')" id="item-${m.id}">
+      <div class="msg-from"><span>${m.from} → ${m.to}</span><span>${date}</span></div>
+      <div class="msg-subject">${m.subject||'(no subject)'} <span class="status-badge status-${m.status}">${m.status.toUpperCase()}</span></div>
+      <div class="msg-preview">${m.body.substring(0,55)}${m.body.length>55?'…':''}</div>
+    </div>`;
+  }).join('');
+}
+function renderList_retry(){ allMessages=[]; renderList(); }
+
+function viewMessage(id){
+  document.querySelectorAll('.msg-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('item-'+id); if(el) el.classList.add('active');
+  const msg=Array.isArray(allMessages)?allMessages.find(m=>m.id===id):null;
+  if(!msg) return;
+  const date=new Date(msg.timestamp).toLocaleString('en-AU');
+  let alert='';
+  if(msg.status==='squished') alert=`<div class="squish-alert">☠️ ${msg.squish_msg||'Squished!'} — Message LOST.</div>`;
+  else if(msg.status==='garbled') alert=`<div class="garble-alert">⚠️ ${msg.squish_msg||'Ant arrived injured!'}</div>`;
+  document.getElementById('messageView').innerHTML=`
+    <div class="msg-full-header">
+      <div class="msg-full-subject">${msg.subject||'(no subject)'}</div>
+      <div class="msg-meta"><strong>From:</strong> ${msg.from}<br><strong>To:</strong> ${msg.to}<br><strong>Sent:</strong> ${date}</div>
+    </div>${alert}<div class="msg-body">${msg.body}</div>`;
+}
+
+// ─── COMPOSE ─────────────────────────────────────────
+function openCompose(){
+  if(!USERNAME) return;
+  buildToDropdown();
+  document.getElementById('fromDisplay').textContent='💻 '+USERNAME;
+  document.getElementById('composePanel').classList.add('open');
+}
+function closeCompose(){document.getElementById('composePanel').classList.remove('open');}
+
+function updateRisk(){
+  const body=document.getElementById('composeBody').value;
+  const risk=0.15+Math.min(body.length/1000,0.25);
+  const pct=Math.round(risk*100);
+  document.getElementById('riskPct').textContent=pct+'%';
+  const fill=document.getElementById('riskFill');
+  fill.style.width=pct+'%';
+  fill.style.background=pct<20?'var(--green)':pct<30?'var(--orange)':'var(--red)';
+  document.getElementById('squishMeter').textContent=`☠️ risk: ${pct}%`;
+}
+
+async function sendMessage(){
+  if(!USERNAME){showToast('Join the office first!','squished');return;}
+  const to=document.getElementById('composeTo').value;
+  const subject=document.getElementById('composeSubject').value;
+  const body=document.getElementById('composeBody').value;
+  if(!body.trim()) return;
+  if(USERNAME===to){showToast('Cannot message yourself!','squished');return;}
+
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=true; btn.textContent='🐜 Sending...';
+  closeCompose();
+
+  spawnMyAnt(myDeskId||USERNAME, to, myColor, async(canvasOutcome)=>{
+    const r=await fetch('/api/send',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from:USERNAME,to,subject,body,forced_outcome:canvasOutcome})
+    });
+    const data=await r.json();
+    btn.disabled=false; btn.textContent='🐜 SEND ANT';
+    if(data.status==='delivered') showToast('✅ Delivered safely!','delivered');
+    else if(data.status==='squished') showToast('☠️ '+(data.squish_msg||'Ant squished!'),'squished');
+    else showToast('⚠️ '+(data.squish_msg||'Message garbled!'),'garbled');
+    document.getElementById('composeSubject').value='';
+    document.getElementById('composeBody').value='';
+    updateRisk();
+    loadMessages();
+  });
+}
+
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),4000);
+}
+
+// ─── ANT TRAIL ───────────────────────────────────────
+function spawnFooterAnt(){
+  const trail=document.getElementById('antTrail');
+  const ant=document.createElement('div');
+  ant.className='ant-walker'; ant.textContent='🐜';
+  const dur=8+Math.random()*10;
+  ant.style.animationDuration=dur+'s';
+  ant.style.animationDelay=(Math.random()*3)+'s';
+  trail.appendChild(ant);
+  setTimeout(()=>ant.remove(),(dur+3)*1000);
+}
+setInterval(spawnFooterAnt,2500);
+spawnFooterAnt(); spawnFooterAnt();
+
+// poll handles message refresh
+</script>
+</body>
+</html>
