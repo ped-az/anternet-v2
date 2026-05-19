@@ -17,7 +17,7 @@ def redis_get(key):
 def redis_set(key, value):
     url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
     token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-    body = json.dumps(["SET", key, value]).encode()
+    body = json.dumps([["SET", key, value]]).encode()
     req = urllib.request.Request(
         f"{url}/pipeline",
         data=body,
@@ -60,7 +60,7 @@ def save_messages(msgs):
 def cleanup_sessions(sessions):
     # Give 10 seconds before expiring
     now = time.time()
-    return {k: v for k, v in sessions.items() if now - v.get('last_seen', 0) < 10}
+    return {k: v for k, v in sessions.items() if now - v.get('last_seen', 0) < 30}
 
 def get_color(name):
     return COLORS[abs(hash(name)) % len(COLORS)]
