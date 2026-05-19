@@ -1,47 +1,52 @@
 import os, json, random, time
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
-try:
-    from upstash_redis import Redis
-except ImportError as e:
-    raise RuntimeError(f"upstash_redis import failed: {e}")
+from upstash_redis import Redis
 
 app = Flask(__name__)
 
-try:
-    redis = Redis(
-        url=os.environ["UPSTASH_REDIS_REST_URL"],
-        token=os.environ["UPSTASH_REDIS_REST_TOKEN"],
-    )
-except KeyError as e:
-    raise RuntimeError(f"Missing environment variable: {e}")
-except Exception as e:
-    raise RuntimeError(f"Redis init failed: {e}")
+_redis = None
+
+def get_redis():
+    global _redis
+    if _redis is None:
+        _redis = Redis(
+            url=os.environ["UPSTASH_REDIS_REST_URL"],
+            token=os.environ["UPSTASH_REDIS_REST_TOKEN"],
+        )
+    return _redis
+
+@app.route("/debug")
+def debug():
+    keys = list(os.environ.keys())
+    has_url = "UPSTASH_REDIS_REST_URL" in os.environ
+    has_token = "UPSTASH_REDIS_REST_TOKEN" in os.environ
+    return jsonify({"has_url": has_url, "has_token": has_token})
 
 COLORS = ['#cc1100','#1177cc','#11aa44','#cc7700','#9911cc',
           '#11ccaa','#cc1177','#4477cc','#88cc11','#cc4411']
 
 def load_sessions():
     try:
-        data = redis.get("sessions")
+        data = get_redis().get("sessions")
         result = json.loads(data) if data else {}
         return result if isinstance(result, dict) else {}
     except:
         return {}
 
 def save_sessions(sessions):
-    redis.set("sessions", json.dumps(sessions))
+    get_redis().set("sessions", json.dumps(sessions))
 
 def load_messages():
     try:
-        data = redis.get("messages")
+        data = get_redis().get("messages")
         result = json.loads(data) if data else []
         return result if isinstance(result, list) else []
     except:
         return []
 
 def save_messages(msgs):
-    redis.set("messages", json.dumps(msgs))
+    get_redis().set("messages", json.dumps(msgs))
 
 def cleanup_sessions(sessions):
     # Give 10 seconds before expiring
