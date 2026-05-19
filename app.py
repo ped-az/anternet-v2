@@ -1,14 +1,22 @@
 import os, json, random, time
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
-from upstash_redis import Redis
+try:
+    from upstash_redis import Redis
+except ImportError as e:
+    raise RuntimeError(f"upstash_redis import failed: {e}")
 
 app = Flask(__name__)
 
-redis = Redis(
-    url=os.environ["UPSTASH_REDIS_REST_URL"],
-    token=os.environ["UPSTASH_REDIS_REST_TOKEN"],
-)
+try:
+    redis = Redis(
+        url=os.environ["UPSTASH_REDIS_REST_URL"],
+        token=os.environ["UPSTASH_REDIS_REST_TOKEN"],
+    )
+except KeyError as e:
+    raise RuntimeError(f"Missing environment variable: {e}")
+except Exception as e:
+    raise RuntimeError(f"Redis init failed: {e}")
 
 COLORS = ['#cc1100','#1177cc','#11aa44','#cc7700','#9911cc',
           '#11ccaa','#cc1177','#4477cc','#88cc11','#cc4411']
