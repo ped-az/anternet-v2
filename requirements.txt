@@ -1,2 +1,2 @@
-flask==3.0.3
-upstash-redis==1.1.0
+flask
+upstash-redis
